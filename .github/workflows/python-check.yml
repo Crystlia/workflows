@@ -20,10 +20,10 @@ jobs:
         uses: astral-sh/setup-uv@v7
       - name: Set up Python
         run: uv python install
-      - name: Install the project
-        run: uv sync --all-extras --dev
+      - name: Install the dependencies
+        run: uv sync --all-groups --frozen
       - name: Run ruff format
-        run: uv run --frozen ruff format --check
+        run: uv run ruff format --check
 
   lint:
     name: lint
@@ -37,10 +37,10 @@ jobs:
         uses: astral-sh/setup-uv@v7
       - name: Set up Python
         run: uv python install
-      - name: Install the project
-        run: uv sync --all-extras --dev
+      - name: Install the dependencies
+        run: uv sync --all-groups --frozen
       - name: Run ruff check
-        run: uv run --frozen ruff check
+        run: uv run ruff check
 
   mypy:
     name: mypy
@@ -54,7 +54,7 @@ jobs:
         uses: astral-sh/setup-uv@v7
       - name: Set up Python
         run: uv python install
-      - name: Install the project
-        run: uv sync --all-extras --dev
+      - name: Install the dependencies
+        run: uv sync --all-groups --frozen
       - name: Run mypy
-        run: uv run --frozen mypy
+        run: uv run mypy .
