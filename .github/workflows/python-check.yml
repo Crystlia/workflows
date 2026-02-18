@@ -13,41 +13,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  fmt:
-    name: fmt
+  check:
+    name: ${{ matrix.name }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: fmt
+            cmd: ruff format --check
+          - name: lint
+            cmd: ruff check
+          - name: mypy
+            cmd: mypy .
+          - name: licenses
+            cmd: licenses-deny check --quiet
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
-      - name: Generate GitHub App Token
-        id: generate-token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-      - name: Configure Git Credentials
-        run: |
-          git config --global url."https://x-access-token:${{ steps.generate-token.outputs.token }}@github.com/".insteadOf "https://github.com/"
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-      - name: Set up Python
-        run: uv python install
-      - name: Install the dependencies
-        run: uv sync --all-groups --frozen
-      - name: Run ruff format
-        run: uv run ruff format --check
 
-  lint:
-    name: lint
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
       - name: Generate GitHub App Token
         id: generate-token
         uses: actions/create-github-app-token@v1
@@ -55,41 +41,19 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
-      - name: Configure Git Credentials
-        run: |
-          git config --global url."https://x-access-token:${{ steps.generate-token.outputs.token }}@github.com/".insteadOf "https://github.com/"
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-      - name: Set up Python
-        run: uv python install
-      - name: Install the dependencies
-        run: uv sync --all-groups --frozen
-      - name: Run ruff check
-        run: uv run ruff check
 
-  mypy:
-    name: mypy
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - name: Generate GitHub App Token
-        id: generate-token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
       - name: Configure Git Credentials
         run: |
           git config --global url."https://x-access-token:${{ steps.generate-token.outputs.token }}@github.com/".insteadOf "https://github.com/"
+
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+
       - name: Set up Python
         run: uv python install
-      - name: Install the dependencies
+
+      - name: Install dependencies
         run: uv sync --all-groups --frozen
-      - name: Run mypy
-        run: uv run mypy .
+
+      - name: Run ${{ matrix.name }}
+        run: uv run ${{ matrix.cmd }}
