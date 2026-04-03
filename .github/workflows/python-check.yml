@@ -7,6 +7,8 @@ on:
         required: true
       APP_PRIVATE_KEY:
         required: true
+      SOURCE_ORG:
+        required: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -40,7 +42,7 @@ jobs:
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
+          owner: ${{ secrets.SOURCE_ORG && secrets.SOURCE_ORG || github.repository_owner }}
 
       - name: Configure Git Credentials
         run: |
