@@ -28,7 +28,7 @@ jobs:
             cmd: ruff check
           - name: mypy
             cmd: mypy .
-          - name: licenses
+          - name: audit
             cmd: licenses-deny check --quiet
     steps:
       - name: Checkout repository
