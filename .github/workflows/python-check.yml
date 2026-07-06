@@ -4,9 +4,9 @@ on:
   workflow_call:
     secrets:
       APP_ID:
-        required: true
+        required: false
       APP_PRIVATE_KEY:
-        required: true
+        required: false
       SOURCE_ORG:
         required: false
 
@@ -18,6 +18,9 @@ jobs:
   check:
     name: ${{ matrix.name }}
     runs-on: ubuntu-latest
+    env:
+      CAN_AUTHENTICATE: ${{ secrets.APP_ID != '' && secrets.APP_PRIVATE_KEY != '' }}
+      
     strategy:
       fail-fast: false
       matrix:
@@ -30,21 +33,25 @@ jobs:
             cmd: mypy .
           - name: audit
             cmd: licenses-deny check --quiet
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: recursive
+          persist-credentials: false
 
       - name: Generate GitHub App Token
         id: generate-token
+        if: ${{ env.CAN_AUTHENTICATE == 'true' }}
         uses: actions/create-github-app-token@v1
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
-          owner: ${{ secrets.SOURCE_ORG && secrets.SOURCE_ORG || github.repository_owner }}
+          owner: ${{ secrets.SOURCE_ORG || github.repository_owner }}
 
       - name: Configure Git Credentials
+        if: ${{ env.CAN_AUTHENTICATE == 'true' }}
         run: |
           git config --global url."https://x-access-token:${{ steps.generate-token.outputs.token }}@github.com/".insteadOf "https://github.com/"
 
