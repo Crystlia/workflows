@@ -1,0 +1,95 @@
+name: Check
+
+on:
+  workflow_call:
+    inputs:
+      run_doc_check:
+        required: false
+        default: true
+        type: boolean
+
+    secrets:
+      APP_ID:
+        required: false
+      APP_PRIVATE_KEY:
+        required: false
+      SOURCE_ORG:
+        required: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    env:
+      CAN_AUTHENTICATE: ${{ secrets.APP_ID != '' && secrets.APP_PRIVATE_KEY != '' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: fmt-nightly
+            toolchain: nightly
+            components: rustfmt
+            cmd: cargo +nightly fmt --check --all
+
+          - name: clippy-stable
+            toolchain: stable
+            components: clippy
+            cmd: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+
+          - name: deny-stable
+            toolchain: stable
+            install: cargo-deny
+            cmd: cargo deny --workspace --all-features --locked check
+
+          - name: doc-nightly
+            if: ${{ inputs.run_doc_check }}
+            toolchain: nightly
+            components: rust-docs
+            cmd: cargo +nightly rustdoc --all-features --locked -- -Zunstable-options --check --deny warnings
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Generate GitHub App Token
+        id: generate-token
+        if: ${{ env.CAN_AUTHENTICATE == 'true' }}
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ secrets.SOURCE_ORG || github.repository_owner }}
+
+      - name: Configure Git Credentials
+        if: ${{ env.CAN_AUTHENTICATE == 'true' }}
+        run: |
+          git config --global \
+            url."https://x-access-token:${{ steps.generate-token.outputs.token }}@github.com/".insteadOf \
+            "https://github.com/"
+
+      - name: Cache Cargo dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          components: ${{ matrix.components }}
+
+      - name: Install cargo-deny
+        if: ${{ matrix.install == 'cargo-deny' }}
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
+
+      - name: Run ${{ matrix.name }}
+        if: ${{ matrix.if == null || fromJSON(matrix.if) }}
+        run: ${{ matrix.cmd }}
